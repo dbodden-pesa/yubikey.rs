@@ -244,6 +244,30 @@ impl<'tx> Transaction<'tx> {
 
     /// Set the management key (MGM).
     #[cfg(feature = "untested")]
+    pub fn set_mgm_key_algo(&self, new_key: &MgmKey, require_touch: bool, algo: u8) -> Result<()> {
+        let p2 = if require_touch { 0xfe } else { 0xff };
+
+        let mut data = [0u8; DES_LEN_3DES + 3];
+        data[0] = algo;
+        data[1] = KEY_CARDMGM;
+        data[2] = DES_LEN_3DES as u8;
+        data[3..3 + DES_LEN_3DES].copy_from_slice(new_key.as_ref());
+
+        let status_words = Apdu::new(Ins::SetMgmKey)
+            .params(0xff, p2)
+            .data(data)
+            .transmit(self, 261)?
+            .status_words();
+
+        if !status_words.is_success() {
+            return Err(Error::GenericError);
+        }
+
+        Ok(())
+    }
+
+    /// Set the management key (MGM).
+    #[cfg(feature = "untested")]
     pub fn set_mgm_key(&self, new_key: &MgmKey, require_touch: bool) -> Result<()> {
         let p2 = if require_touch { 0xfe } else { 0xff };
 

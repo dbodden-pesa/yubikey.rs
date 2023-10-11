@@ -47,7 +47,7 @@ use des::{
 };
 #[cfg(feature = "untested")]
 use {pbkdf2::pbkdf2_hmac, sha1::Sha1};
-use crate::yubikey::ALGO_3DES;
+use crate::yubikey::{ALGO_3DES, ALGO_AES128, ALGO_AES192, ALGO_AES256};
 
 /// YubiKey MGMT Applet Name
 #[cfg(feature = "untested")]
@@ -99,9 +99,9 @@ pub enum MgmType {
 #[derive(Clone)]
 //pub struct MgmKey([u8; DES_LEN_3DES]);
 pub struct MgmKey {
-    algo: u8,
-    key: Vec<u8>,
-    key_len: usize
+    pub algo: u8,
+    pub key: Vec<u8>,
+    pub key_len: usize
 }
 
 impl MgmKey {
@@ -122,17 +122,30 @@ impl MgmKey {
     /// Create an MGM key from the given byte array.
     ///
     /// Returns an error if the key is weak.
-    pub fn new(key_bytes: [u8; DES_LEN_3DES]) -> Result<Self> {
-        if is_weak_key(&key_bytes) {
-            error!(
+    pub fn new(algo: u8, key_bytes: &[u8]) -> Result<Self> {
+        if algo == ALGO_3DES {
+            if key_bytes.len() != 24 || is_weak_key(key_bytes) {
+                error!(
+                    "blacklisting key '{:?}' since it's weak (with odd parity)",
+                    &key_bytes
+                );
+
+                return Err(Error::KeyError);
+            }
+        }
+        let key_len = match algo {
+            ALGO_3DES => DES_LEN_3DES,
+            _ => {
+                error!(
                 "blacklisting key '{:?}' since it's weak (with odd parity)",
                 &key_bytes
             );
 
-            return Err(Error::KeyError);
-        }
+                return Err(Error::KeyError);
+            }
+        };
 
-        Ok(Self{ algo: ALGO_3DES, key: Vec::from(key_bytes), key_len: DES_LEN_3DES })
+        Ok(Self{ algo, key: Vec::from(key_bytes), key_len })
     }
 
     /// Get derived management key (MGM)
@@ -408,9 +421,9 @@ impl MgmKey {
     }
 }
 
-impl AsRef<[u8; DES_LEN_3DES]> for MgmKey {
-    fn as_ref(&self) -> &[u8; DES_LEN_3DES] {
-        <&[u8; 24]>::try_from(self.key.as_slice()).unwrap()
+impl AsRef<[u8]> for MgmKey {
+    fn as_ref(&self) -> &[u8] {
+        <&[u8]>::try_from(self.key.as_slice()).unwrap()
     }
 }
 
@@ -436,8 +449,9 @@ impl Drop for MgmKey {
 impl<'a> TryFrom<&'a [u8]> for MgmKey {
     type Error = Error;
 
+    // this might be OK default behavior for now
     fn try_from(key_bytes: &'a [u8]) -> Result<Self> {
-        Self::new(key_bytes.try_into().map_err(|_| Error::SizeError)?)
+        Self::new( ALGO_3DES, key_bytes.try_into().map_err(|_| Error::SizeError)?)
     }
 }
 
@@ -472,7 +486,7 @@ const WEAK_DES_KEYS: &[[u8; DES_LEN_DES]] = &[
 ///
 /// This check is performed automatically when the key is instantiated to
 /// ensure no such keys are used.
-fn is_weak_key(key: &[u8; DES_LEN_3DES]) -> bool {
+fn is_weak_key(key: &[u8]) -> bool {
     // set odd parity of key
     let mut tmp = Zeroizing::new([0u8; DES_LEN_3DES]);
 

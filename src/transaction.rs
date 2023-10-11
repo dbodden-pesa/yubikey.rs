@@ -18,6 +18,9 @@ use zeroize::Zeroizing;
 use crate::mgm::{MgmKey, DES_LEN_3DES};
 
 const CB_PIN_MAX: usize = 8;
+// For resetting management keys which are non-3DES, we need to make sure we handle the larger
+// sizes when allocation the buffers, etc.
+const MAX_MGM_KEY_LEN: usize = 32;
 
 #[cfg(feature = "untested")]
 pub(crate) enum ChangeRefAction {
@@ -247,7 +250,7 @@ impl<'tx> Transaction<'tx> {
     pub fn set_mgm_key_algo(&self, new_key: &MgmKey, require_touch: bool, algo: u8) -> Result<()> {
         let p2 = if require_touch { 0xfe } else { 0xff };
 
-        let mut data = [0u8; DES_LEN_3DES + 3];
+        let mut data = [0u8; MAX_MGM_KEY_LEN + 3];
         data[0] = algo;
         data[1] = KEY_CARDMGM;
         data[2] = DES_LEN_3DES as u8;
@@ -271,15 +274,16 @@ impl<'tx> Transaction<'tx> {
     pub fn set_mgm_key(&self, new_key: &MgmKey, require_touch: bool) -> Result<()> {
         let p2 = if require_touch { 0xfe } else { 0xff };
 
-        let mut data = [0u8; DES_LEN_3DES + 3];
-        data[0] = ALGO_3DES;
+        let mut data = [0u8; MAX_MGM_KEY_LEN + 3];
+        data[0] = new_key.algo;
         data[1] = KEY_CARDMGM;
-        data[2] = DES_LEN_3DES as u8;
-        data[3..3 + DES_LEN_3DES].copy_from_slice(new_key.as_ref());
+        data[2] = new_key.key_len as u8;
+        let slice = new_key.as_ref();
+        data[3..3 + new_key.key_len].copy_from_slice(slice);
 
         let status_words = Apdu::new(Ins::SetMgmKey)
             .params(0xff, p2)
-            .data(data)
+            .data(&data[0..new_key.key_len + 3])
             .transmit(self, 261)?
             .status_words();
 

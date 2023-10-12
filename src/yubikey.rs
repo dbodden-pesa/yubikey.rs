@@ -67,11 +67,11 @@ use {
 pub(crate) const ADMIN_FLAGS_1_PUK_BLOCKED: u8 = 0x01;
 
 /// 3DES authentication
-pub(crate) const ALGO_3DES: u8 = 0x03;
+pub const ALGO_3DES: u8 = 0x03;
 // newer algos needed for FIPS 140-3 compliance.
-pub(crate) const ALGO_AES128: u8 = 0x08;
-pub(crate) const ALGO_AES192: u8 = 0x0a;
-pub(crate) const ALGO_AES256: u8 = 0x0c;
+pub const ALGO_AES128: u8 = 0x08;
+pub const ALGO_AES192: u8 = 0x0a;
+pub const ALGO_AES256: u8 = 0x0c;
 
 /// Card management key
 pub(crate) const KEY_CARDMGM: u8 = 0x9b;

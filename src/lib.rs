@@ -63,7 +63,7 @@ pub mod reader;
 mod serialization;
 mod setting;
 mod transaction;
-mod yubikey;
+pub mod yubikey;
 
 pub use crate::{
     cccid::{CardId, CccId},

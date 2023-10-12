@@ -19,6 +19,8 @@ use yubikey::{
     Error, MgmKey, PinPolicy, Serial, TouchPolicy, YubiKey,
 };
 
+use yubikey::yubikey::{ALGO_3DES, ALGO_AES128, ALGO_AES192, ALGO_AES256};
+
 static YUBIKEY: Lazy<Mutex<YubiKey>> = Lazy::new(|| {
     // Only show logs if `RUST_LOG` is set
     if env::var("RUST_LOG").is_ok() {
@@ -144,6 +146,45 @@ fn test_set_mgmkey() {
     assert!(yubikey.authenticate(MgmKey::default()).is_ok());
 }
 
+#[cfg(feature = "untested")]
+#[test]
+#[ignore]
+fn test_set_mgmkey_with_explicit_algo() {
+    let mut yubikey = YUBIKEY.lock().unwrap();
+
+    assert!(yubikey.verify_pin(b"123456").is_ok());
+    assert!(MgmKey::get_protected(&mut yubikey).is_err());
+    assert!(yubikey.authenticate(MgmKey::default()).is_ok());
+
+    let raw_bytes_01 = vec![
+        8, 8, 8, 8, 8, 8, 8, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8,
+    ];
+
+    let raw_bytes_02 = vec![
+        1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8,
+    ];
+    // Set a protected management key.
+    let new_3des_key = MgmKey::new(ALGO_3DES, &raw_bytes_01).unwrap();
+    assert!(new_3des_key.set_protected(&mut yubikey).is_ok());
+    let protected = MgmKey::get_protected(&mut yubikey).unwrap();
+    assert!(yubikey.authenticate(MgmKey::default()).is_err());
+    assert!(yubikey.authenticate(protected.clone()).is_ok());
+/*
+    // Set a manual management key.
+    let manual = MgmKey::generate();
+    assert!(manual.set_manual_algo(&mut yubikey, false).is_ok());
+    assert!(MgmKey::get_protected(&mut yubikey).is_err());
+    assert!(yubikey.authenticate(MgmKey::default()).is_err());
+    assert!(yubikey.authenticate(protected.clone()).is_err());
+    assert!(yubikey.authenticate(manual.clone()).is_ok());
+*/
+    // Set back to the default management key.
+    assert!(MgmKey::set_default(&mut yubikey).is_ok());
+    assert!(MgmKey::get_protected(&mut yubikey).is_err());
+    assert!(yubikey.authenticate(protected).is_err());
+    //assert!(yubikey.authenticate(manual).is_err());
+    assert!(yubikey.authenticate(MgmKey::default()).is_ok());
+}
 //
 // Certificate support
 //

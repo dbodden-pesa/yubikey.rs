@@ -184,6 +184,37 @@ fn test_set_mgmkey_with_explicit_algo() {
     assert!(yubikey.authenticate(protected).is_err());
     //assert!(yubikey.authenticate(manual).is_err());
     assert!(yubikey.authenticate(MgmKey::default()).is_ok());
+
+    // let's try AES256!
+    let raw_bytes_03 = vec![
+        1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8,
+        1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8,
+    ];
+    let raw_bytes_04 = vec![
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    ];
+    // create the new key
+    let aes256_mgm_key = MgmKey::new(ALGO_AES256, &raw_bytes_04).unwrap();
+    assert_eq!(aes256_mgm_key.algo, ALGO_AES256);
+    assert_eq!(aes256_mgm_key.key_len, 32);
+    assert_eq!(aes256_mgm_key.key.len(), 32);
+
+    // ok now try and insert it
+    assert!(yubikey.authenticate(MgmKey::default()).is_ok());
+    assert!(aes256_mgm_key.set_manual(&mut yubikey, false).is_ok());
+    //let protected_aes256 = MgmKey::get_protected(&mut yubikey).unwrap();
+    //assert!(yubikey.authenticate(MgmKey::default()).is_err());
+    //assert!(yubikey.authenticate(aes256_mgm_key.clone()).is_ok());
+
+    // ok now set it back to default:
+    //assert!(MgmKey::set_default(&mut yubikey).is_ok());
+    //assert!(MgmKey::get_protected(&mut yubikey).is_err());
+    //assert!(yubikey.authenticate(aes256_mgm_key.clone()).is_err());
+    //assert!(yubikey.authenticate(manual).is_err());
+    //assert!(yubikey.authenticate(MgmKey::default()).is_ok());
 }
 //
 // Certificate support

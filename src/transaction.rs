@@ -244,7 +244,7 @@ impl<'tx> Transaction<'tx> {
             }
         }
     }
-
+/*
     /// Set the management key (MGM).
     #[cfg(feature = "untested")]
     pub fn set_mgm_key_algo(&self, new_key: &MgmKey, require_touch: bool, algo: u8) -> Result<()> {
@@ -268,7 +268,7 @@ impl<'tx> Transaction<'tx> {
 
         Ok(())
     }
-
+*/
     /// Set the management key (MGM).
     #[cfg(feature = "untested")]
     pub fn set_mgm_key(&self, new_key: &MgmKey, require_touch: bool) -> Result<()> {

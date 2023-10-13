@@ -123,29 +123,35 @@ impl MgmKey {
     ///
     /// Returns an error if the key is weak.
     pub fn new(algo: u8, key_bytes: &[u8]) -> Result<Self> {
-        if algo == ALGO_3DES {
-            if key_bytes.len() != 24 || is_weak_key(key_bytes) {
-                error!(
-                    "blacklisting key '{:?}' since it's weak (with odd parity)",
-                    &key_bytes
-                );
-
-                return Err(Error::KeyError);
-            }
-        }
-        let key_len = match algo {
-            ALGO_3DES => DES_LEN_3DES,
+        let correct_len = match algo {
+            ALGO_3DES => {
+                if is_weak_key(key_bytes) {
+                    error!(
+                        "blacklisting key '{:?}' since it's weak (with odd parity)",
+                        &key_bytes
+                    );
+                    return Err(Error::KeyError);
+                }
+                DES_LEN_3DES
+            },
+            ALGO_AES128 => AES128_LEN,
+            ALGO_AES192 => AES192_LEN,
+            ALGO_AES256 => AES256_LEN,
             _ => {
-                error!(
-                "blacklisting key '{:?}' since it's weak (with odd parity)",
-                &key_bytes
-            );
-
+                error!("Bad algorithm: {}", algo);
                 return Err(Error::KeyError);
             }
         };
-
-        Ok(Self{ algo, key: Vec::from(key_bytes), key_len })
+        if key_bytes.len() != correct_len {
+            error!(
+                "key has length {} for algo {} should be length {}",
+                key_bytes.len(),
+                algo,
+                correct_len
+            );
+            return Err(Error::KeyError);
+        }
+        Ok(Self{ algo, key: Vec::from(key_bytes), key_len: correct_len })
     }
 
     /// Get derived management key (MGM)
@@ -186,7 +192,8 @@ impl MgmKey {
             error!("could not read protected MGM from metadata (err: {:?})", e);
             e
         })?;
-
+        // this no longer works w/ multiple possible key types.
+        /*
         if item.len() != DES_LEN_3DES {
             error!(
                 "protected data contains MGM, but is the wrong size: {} (expected {})",
@@ -195,7 +202,7 @@ impl MgmKey {
             );
 
             return Err(Error::AuthenticationError);
-        }
+        }*/
 
         MgmKey::from_bytes(item)
     }
@@ -269,7 +276,7 @@ impl MgmKey {
 
         Ok(())
     }
-
+/*
     /// Configures the given YubiKey to use this management key.
     ///
     /// The management key must be stored by the user, and provided when performing key
@@ -330,7 +337,7 @@ impl MgmKey {
         }
 
         Ok(())
-    }
+    }*/
 
 
     /// Configures the given YubiKey to use this as a PIN-protected management key.
